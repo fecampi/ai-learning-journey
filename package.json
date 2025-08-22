@@ -1,0 +1,24 @@
+{
+  "name": "ai-learning-journey",
+  "version": "1.0.0",
+  "description": "Jornada de aprendizado de IA: De Workflows a Agents com Google Gemini",
+  "main": "examples/demo.js",
+  "scripts": {
+    "start": "node examples/demo.js",
+    "demo": "node examples/demo.js"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "function-calling",
+    "gemini",
+    "google",
+    "artificial-intelligence"
+  ],
+  "dependencies": {
+    "@google/generative-ai": "^0.20.0",
+    "dotenv": "^16.6.1"
+  },
+  "author": "AI Agent Demo",
+  "license": "MIT"
+}

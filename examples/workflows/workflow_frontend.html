@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Workflow Frontend - Análise de Logs</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-8">
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-xl font-bold mb-6">Workflow Frontend - Análise de Logs</h1>
+    
+    <div class="mb-4">
+      <label class="block mb-2">API Key:</label>
+      <input 
+        type="text" 
+        id="apiKey" 
+        placeholder="AIzaSy..." 
+        class="w-full p-2 border rounded"
+      />
+    </div>
+
+    <button 
+      id="analyzeBtn" 
+      onclick="runAnalysis()"
+      class="bg-blue-500 text-white px-4 py-2 rounded"
+    >
+      Analisar
+    </button>
+
+    <div id="resultContainer" class="mt-6 hidden">
+      <h2 class="font-bold mb-2">Resultado:</h2>
+      <div id="result" class="bg-gray-100 p-4 rounded border whitespace-pre-wrap"></div>
+    </div>
+  </div>
+
+  <script>
+    async function analyze(logsJson, promptText, apiKey) {
+      const fullPrompt = `### LOGS (JSON)\n${logsJson}\n\n${promptText}`;
+      const modelName = "gemini-1.5-flash";
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: fullPrompt }] }],
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const json = await response.json();
+      return json?.candidates?.[0]?.content?.parts?.[0]?.text || "Erro na resposta.";
+    }
+
+    // Logs de exemplo para análise
+    const logs = [
+      {
+        device_id: "device_1",
+        level_name: "WARNING",
+        message: "Playback stalled after 10s",
+        context: "player.buffering",
+        date_time: "2025-06-21T14:15:00Z"
+      },
+      {
+        device_id: "device_2",
+        level_name: "WARNING",
+        message: "WebSocket disconnected unexpectedly",
+        context: "ws.connection",
+        date_time: "2025-06-21T14:16:00Z"
+      },
+      {
+        device_id: "device_1",
+        level_name: "WARNING",
+        message: "Failed to fetch VAST ad",
+        context: "ads.loader",
+        date_time: "2025-06-21T14:17:00Z"
+      }
+    ];
+
+    const prompt = `### OBJETIVO
+1. Liste os device_id que apresentaram problemas.
+2. Agrupe por contexto e descreva os principais problemas.
+3. Identifique qualquer padrão que sugira falha de rede, player ou anúncios.
+
+Responda em português técnico, de forma objetiva.`;
+
+    // Função para mostrar resultado na página
+    function showResult(content, isError = false) {
+      const resultContainer = document.getElementById('resultContainer');
+      const resultDiv = document.getElementById('result');
+      
+      resultContainer.classList.remove('hidden');
+      
+      if (isError) {
+        resultDiv.className = 'bg-red-100 p-4 rounded border whitespace-pre-wrap text-red-800';
+      } else {
+        resultDiv.className = 'bg-gray-100 p-4 rounded border whitespace-pre-wrap';
+      }
+      
+      resultDiv.textContent = content;
+    }
+
+    // Função para executar análise
+    window.runAnalysis = async function() {
+      const apiKeyInput = document.getElementById('apiKey');
+      const analyzeBtn = document.getElementById('analyzeBtn');
+      const apiKey = apiKeyInput.value.trim();
+      
+      if (!apiKey) {
+        showResult('Insira sua API key', true);
+        return;
+      }
+
+      if (!apiKey.startsWith('AIzaSy')) {
+        showResult('API key inválida', true);
+        return;
+      }
+
+      analyzeBtn.disabled = true;
+      analyzeBtn.textContent = 'Analisando...';
+      showResult('Aguarde...');
+      
+      try {
+        const result = await analyze(JSON.stringify(logs, null, 2), prompt, apiKey);
+        showResult(result);
+      } catch (err) {
+        showResult('Erro: ' + err.message, true);
+      } finally {
+        analyzeBtn.disabled = false;
+        analyzeBtn.textContent = 'Analisar';
+      }
+    };
+  </script>
+</body>
+</html>
