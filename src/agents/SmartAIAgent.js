@@ -6,6 +6,10 @@
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const Logger = require("../utils/Logger");
+const FunctionExecutor = require("./services/FunctionExecutor");
+const FunctionCallHandler = require("./services/FunctionCallHandler");
+const FallbackPlanner = require("./services/FallbackPlanner");
+const UserQuestionProcessor = require("./services/UserQuestionProcessor");
 
 class SmartAIAgent {
   constructor(apiKey, model = "gemini-1.5-flash", logger = null) {
@@ -16,85 +20,102 @@ class SmartAIAgent {
     this.model = null;
     this.chat = null;
     // Usa Logger customizado ou padrão
-    this.logger = logger instanceof Logger ? logger : new Logger("SmartAIAgent", logger);
+    this.logger =
+      logger instanceof Logger ? logger : new Logger("[SmartAIAgent]", logger);
+    this.functionExecutor = null;
+    this.functionCallHandler = null;
+    this.fallbackPlanner = null;
+    this.userQuestionProcessor = null;
   }
 
   addTool(functionDeclaration, implementation) {
     this.tools.push({ functionDeclarations: [functionDeclaration] });
     this.functionMap[functionDeclaration.name] = implementation;
+    // Atualiza o executor se já existir
+    if (this.functionExecutor) {
+      this.functionExecutor.functionMap = this.functionMap;
+    }
+    if (this.fallbackPlanner) {
+      this.fallbackPlanner.functionMap = this.functionMap;
+    }
   }
 
   async startSession(systemPrompt) {
     this.model = this.genAI.getGenerativeModel({
       model: this.modelName,
-      tools: this.tools
+      tools: this.tools,
     });
     if (systemPrompt) {
-      this.chat = this.model.startChat({ history: [ { role: "user", parts: [{ text: systemPrompt }] } ] });
+      this.chat = this.model.startChat({
+        history: [{ role: "user", parts: [{ text: systemPrompt }] }],
+      });
     } else {
       this.chat = this.model.startChat();
     }
+    // Instancia os serviços
+    this.functionExecutor = new FunctionExecutor(this.functionMap, this.logger);
+    this.functionCallHandler = new FunctionCallHandler(
+      this.chat,
+      this.functionExecutor,
+      this.logger
+    );
+    this.fallbackPlanner = new FallbackPlanner(
+      this.chat,
+      this.functionMap,
+      this.logger
+    );
+    this.userQuestionProcessor = new UserQuestionProcessor(
+      this.chat,
+      this.modelName,
+      this.logger
+    );
   }
 
-  // MÉTODO 1: COMUNICAÇÃO COM A IA
-  // Envia o resultado de uma função de volta para a IA processar
-  async sendFunctionResult(functionName, result) {
-    this.logger.log(`Enviando resultado da função '${functionName}' para a IA processar`);
-    // Formato específico do Gemini para function responses
-    const response = await this.chat.sendMessage([{
-      functionResponse: {
-        name: functionName,
-        response: { content: result }
-      }
-    }]);
-    return response.response.text();
-  }
-
-  // MÉTODO 2: EXECUÇÃO DINÂMICA DE FUNÇÕES  
-  // Este é o coração do sistema - executa qualquer função do dataProvider
-  async executeFunction(functionName, args) {
-    this.logger.log(`Executando função '${functionName}' com argumentos:`, args);
-    if (typeof this.functionMap[functionName] === 'function') {
-      const result = await this.functionMap[functionName](args);
-      this.logger.log(`Função executada com sucesso. Resultado: ${JSON.stringify(result)}`);
-      return result;
-    } else {
-      const error = `Função '${functionName}' não encontrada no functionMap`;
-      this.logger.log(error);
-      return error;
-    }
-  }
-
-  // MÉTODO 3: ORQUESTRADOR PRINCIPAL
-  // Este método coordena todo o fluxo de uma conversa com function calling
-  async ask(question) {
+  /**
+   * Orquestrador principal do agente IA.
+   * Este método coordena todo o fluxo de uma interação, delegando responsabilidades para serviços especializados.
+   *
+   * @param {string} question - Pergunta do usuário.
+   * @param {number} maxSteps - Máximo de ciclos de function calling permitidos.
+   * @returns {Promise<string>} - Resposta final da IA.
+   */
+  async ask(question, maxSteps = 5) {
+    // Loga a pergunta recebida
     this.logger.log(`Pergunta recebida: "${question}"`);
     this.logger.log("");
     try {
-      // PASSO 1: Envia a pergunta para a IA
-      this.logger.log(`PASSO 1: Enviando pergunta para o modelo ${this.modelName}`);
-      const result1 = await this.chat.sendMessage(question + "\nRespond in Portuguese.");
-      const response1 = result1.response;
+      // 1. Envia a pergunta para a IA usando o serviço UserQuestionProcessor
+      //    Isso retorna a primeira resposta do modelo, que pode ou não conter function calls
+      let response = await this.userQuestionProcessor.process(question);
 
-      // PASSO 2: Verifica se a IA quer executar alguma função
-      this.logger.log(`PASSO 2: Verificando se a IA solicitou function calls`);
-      const functionCalls = response1.functionCalls();
-      if (functionCalls && functionCalls.length > 0) {
-        this.logger.log(`PASSO 3: IA solicitou execução de função!`);
-        // Pega a primeira function call (pode haver várias)
-        const call = functionCalls[0];
-        const functionName = call.name;
-        const args = call.args;
-        // PASSO 3: Executa a função solicitada
-        const result = await this.executeFunction(functionName, args);
-        // PASSO 4: Envia o resultado de volta para a IA processar
-        this.logger.log(`PASSO 4: Enviando resultado de volta para a IA gerar resposta final`);
-        return await this.sendFunctionResult(functionName, result);
+      // 2. Executa o loop de function calling usando FunctionCallHandler
+      //    Enquanto a IA pedir chamadas de função, executa e envia os resultados de volta
+      const { response: finalResponse, steps } =
+        await this.functionCallHandler.handle(response, maxSteps);
+
+      // 3. Se não atingiu o limite de steps e não há mais function calls:
+      //    Se a IA já respondeu com texto, retorna esse texto. Só chama o fallback se a resposta for vazia.
+      if (steps < maxSteps) {
+        const functionCalls = finalResponse.functionCalls();
+        const iaText = finalResponse.text && finalResponse.text();
+        if (!functionCalls || functionCalls.length === 0) {
+          if (iaText && iaText.trim().length > 0 && iaText !== 'null') {
+            // Se a IA já respondeu com texto útil, retorna direto
+            return iaText;
+          } else {
+            // Só chama o fallback se não houver texto útil
+            return await this.fallbackPlanner.planAndExecute(question, finalResponse);
+          }
+        }
       }
-      // Se não há function calls, retorna a resposta direta da IA
-      this.logger.log(`Resposta direta da IA (sem function calls)`);
-      return response1.text();
+
+      // 4. Se chegou ao limite de steps, retorna a resposta parcial gerada até aqui
+      this.logger.warn(
+        `Limite de chamadas (${maxSteps}) atingido. Retornando resposta parcial.`
+      );
+      return finalResponse.text();
     } catch (error) {
+      // 5. Em caso de erro, loga e retorna mensagem de erro amigável
       this.logger.log(`Erro durante a execução: ${error}`);
       return `Erro: ${error.message}`;
     }

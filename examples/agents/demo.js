@@ -11,8 +11,15 @@ if (!API_KEY) {
 
 async function demo() {
   // System prompt para o agente
-  const SYSTEM_PROMPT =
-    "Você é um assistente educacional de IA. Responda sempre em português e explique de forma clara.";
+  const SYSTEM_PROMPT = `Você é um assistente de IA com acesso a funções (tools) que podem ser usadas para responder perguntas do usuário. Sempre que possível, utilize as funções disponíveis para obter informações, mesmo que precise executar várias funções em sequência (ex: obter uma lista e depois buscar detalhes de um item).
+
+Considere que "primeira sessão" significa a sessão com o menor ID retornado pela função getAvailableSessions. Sempre que o usuário pedir pela primeira sessão, utilize o menor ID disponível.
+
+Se a resposta exigir múltiplas etapas, use as funções em cadeia, sem pedir confirmação ao usuário e sem explicar o processo. Retorne apenas o resultado final solicitado.
+
+Se necessário, você pode processar, filtrar ou resumir os dados retornados pelas funções antes de responder ao usuário. Por exemplo, se a função retornar uma lista de logs, você pode filtrar apenas os logs que contenham a palavra "erro" ou fazer um resumo.
+
+Se não for possível responder usando as funções, explique o motivo de forma clara.`;
 
   // Cria o agente IA
   const smartAgent = new SmartAIAgent(
@@ -28,13 +35,13 @@ async function demo() {
   smartAgent.addTool(
     {
       name: "getLogs",
-      description: "Busca logs de uma sessão específica pelo ID da sessão",
+      description: "Busca os logs (erros, avisos, eventos) de uma sessão específica pelo ID da sessão. Caso não saiba o ID, utilize getAvailableSessions para obter um ID válido antes de chamar esta função.",
       parameters: {
         type: "object",
         properties: {
           sessionId: {
             type: "integer",
-            description: "ID da sessão (101, 102, ou 103)",
+            description: "ID da sessão (101, 102, ou 103). Se não souber o ID, obtenha usando getAvailableSessions.",
           },
         },
         required: ["sessionId"],
@@ -46,7 +53,7 @@ async function demo() {
   smartAgent.addTool(
     {
       name: "getAvailableSessions",
-      description: "Lista todas as sessões disponíveis no sistema",
+      description: "Retorna um array de IDs numéricos de todas as sessões disponíveis no sistema, em ordem crescente. Use esta função para obter o menor ID de sessão e, em seguida, caso precise utilize getLogs para buscar os logs dessa sessão.",
       parameters: {
         type: "object",
         properties: {},
@@ -65,11 +72,11 @@ async function demo() {
   const availableTools = [
     {
       name: "getLogs",
-      description: "Busca logs de uma sessão específica pelo ID da sessão",
+      description: "Busca os logs (erros, avisos, eventos) de uma sessão específica pelo ID da sessão. Use esta função após obter o ID da sessão com getAvailableSessions.",
     },
     {
       name: "getAvailableSessions",
-      description: "Lista todas as sessões disponíveis no sistema",
+      description: "Retorna um array de IDs numéricos de todas as sessões disponíveis no sistema, em ordem crescente. Use esta função para obter o menor ID de sessão e, em seguida, utilize getLogs para buscar os logs dessa sessão.",
     },
   ];
 
@@ -78,9 +85,6 @@ async function demo() {
   availableTools.forEach((tool) => {
     terminal.output(`- ${tool.name}: ${tool.description}`);
   });
-  terminal.output("");
-  terminal.output("Chat iniciado! (Ctrl+C para encerrar e ver o log)");
-  terminal.output("");
 
   while (true) {
     const userInput = await terminal.input("");

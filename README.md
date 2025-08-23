@@ -1,4 +1,4 @@
-# �🎓 AI Learning Journey: De Workflows a Agents
+# 🎓 AI Learning Journey: De Workflows a Agents
 
 Este projeto é uma **jornada de aprendizado sobre IA** que demonstra a evolução natural de simples workflows para agents inteligentes com function calling usando Google Gemini.
 
@@ -27,19 +27,24 @@ A ideia deste projeto é fornecer uma **jornada de aprendizado progressivo sobre
 ai-learning-journey/
 ├── src/                         # Código principal dos agents
 │   ├── agents/
-│   │   └── SmartAIAgent.js      # Classe principal do agente IA
+│   │   ├── SmartAIAgent.js      # Classe principal do agente IA
+│   │   └── services/            # Serviços especializados do agente
+│   │       ├── FunctionExecutor.js
+│   │       ├── FunctionCallHandler.js
+│   │       ├── FallbackPlanner.js
+│   │       └── UserQuestionProcessor.js
 │   ├── utils/
 │   │   └── ChatTerminal.js      # Interface de chat simplificada para terminal
 │   ├── providers/
 │   │   └── LogDataProvider.js   # Provedor de dados mock
 │   └── config/
-│       └── functions.js         # Definição das funções disponíveis
+│       └── functions.js         # Definição das funções disponíveis (referência)
 ├── examples/                    # Exemplos educacionais
 │   ├── workflows/               # Fase 1: Workflows simples
 │   │   ├── workflow_frontend.html
 │   │   └── workflow_backend.js
-│   ├── agents/                  # Fase 2: Agents autônomos
-│   └── demo.js                  # Demonstração completa
+│   └── agents/                  # Fase 2: Agents autônomos
+│       └── demo.js              # Demonstração completa e didática
 ├── .env.example                 # Exemplo de variáveis de ambiente
 ├── .gitignore
 ├── package.json
@@ -286,10 +291,6 @@ Resultado: 110
 - IA lembra de perguntas anteriores
 - Suporte a referências contextuais
 
-### ✅ Segurança
-- API keys em variáveis de ambiente
-- Arquivo .gitignore configurado
-- Exemplo de configuração fornecido
 
 ## 🛠️ Componentes Principais do Agent
 
@@ -319,10 +320,6 @@ Simula um sistema de dados com:
 **Métodos disponíveis:**
 - `getLogs(sessionId)` - Busca logs por ID
 - `getAvailableSessions()` - Lista sessões disponíveis
-
-### Configurações
-- **functions.js**: Define funções disponíveis para a IA (usado como referência, mas agora as funções são registradas diretamente no demo.js via `addTool`)
-
 
 ## 📋 Exemplo de Uso do Agent
 ### Sobre `addTool` e Prompt Inteligente
@@ -480,22 +477,6 @@ getServerStatus() {
 
 ---
 
-## 📈 Vantagens da Arquitetura
-
-1. **🔧 Modular**: Cada componente tem responsabilidade única
-2. **🔄 Flexível**: Fácil trocar modelos de IA ou providers
-3. **📈 Extensível**: Adicionar novas funções sem modificar o agente
-4. **🧪 Testável**: Componentes podem ser testados isoladamente
-5. **📚 Educativo**: Código bem documentado para aprendizado
-6. **🔒 Seguro**: API keys protegidas em variáveis de ambiente
-
-## 🚨 Segurança
-
-- ✅ API keys em arquivo `.env` (não commitado)
-- ✅ Arquivo `.env.example` para orientação
-- ✅ `.gitignore` configurado
-- ✅ Validação de API key obrigatória
-
 ## 📝 Scripts Disponíveis
 
 ```bash
@@ -553,7 +534,7 @@ npm install
 
 ---
 
-## Diagrama simples da arquitetura do SmartAIAgent (PlantUML)
+## Diagrama da arquitetura do SmartAIAgent (PlantUML)
 
 ```plantuml
 @startuml
