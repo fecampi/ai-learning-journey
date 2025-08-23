@@ -7,36 +7,37 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 class SmartAIAgent {
-  constructor(apiKey, dataProvider, availableFunctions, model = "gemini-1.5-flash") {
-    // Armazena o provedor de dados (onde estão as funções que a IA pode chamar)
-    this.dataProvider = dataProvider;
-    
-    // Modelo de IA configurável - permite trocar de modelo facilmente
-    // Gemini Flash é rápido e suporta function calling
-    // Outros modelos: "gemini-1.5-pro", "gemini-1.0-pro", etc.
+  constructor(apiKey, model = "gemini-1.5-flash", logger = null) {
     this.modelName = model;
-    
-    // CONFIGURAÇÃO DA IA GEMINI
     this.genAI = new GoogleGenerativeAI(apiKey);
-    
-    // Cria o modelo com configurações específicas para function calling
-    // O parâmetro 'tools' informa à IA quais funções ela pode usar
+    this.tools = [];
+    this.functionMap = {};
+    this.model = null;
+    this.chat = null;
+    this.logger = typeof logger === 'function' ? logger : null;
+  }
+
+  addTool(functionDeclaration, implementation) {
+    this.tools.push({ functionDeclarations: [functionDeclaration] });
+    this.functionMap[functionDeclaration.name] = implementation;
+  }
+
+  async startSession(systemPrompt) {
     this.model = this.genAI.getGenerativeModel({
-      model: this.modelName, // Agora usa a variável do construtor
-      tools: [{ functionDeclarations: availableFunctions }]
+      model: this.modelName,
+      tools: this.tools
     });
-    
-    // SESSÃO DE CHAT COM HISTÓRICO
-    // startChat() cria uma conversa persistente que mantém contexto
-    // Isso significa que a IA lembra das mensagens anteriores
-    // Exemplo: se você perguntar "e a sessão anterior?" ela entenderá o contexto
-    this.chat = this.model.startChat();
+    if (systemPrompt) {
+      this.chat = this.model.startChat({ history: [ { role: "user", parts: [{ text: systemPrompt }] } ] });
+    } else {
+      this.chat = this.model.startChat();
+    }
   }
 
   // MÉTODO 1: COMUNICAÇÃO COM A IA
   // Envia o resultado de uma função de volta para a IA processar
   async sendFunctionResult(functionName, result) {
-    console.log(`SmartAIAgent: Enviando resultado da função '${functionName}' para a IA processar`);
+  if (this.logger) this.logger(`SmartAIAgent: Enviando resultado da função '${functionName}' para a IA processar`);
     
     // Formato específico do Gemini para function responses
     const response = await this.chat.sendMessage([{
@@ -52,17 +53,14 @@ class SmartAIAgent {
   // MÉTODO 2: EXECUÇÃO DINÂMICA DE FUNÇÕES  
   // Este é o coração do sistema - executa qualquer função do dataProvider
   async executeFunction(functionName, args) {
-    console.log(`SmartAIAgent: Executando função '${functionName}' com argumentos:`, args);
-    
-    // MAGIA DINÂMICA: Chama função por nome (string)
-    // Isso permite adicionar novas funções sem modificar este código!
-    if (typeof this.dataProvider[functionName] === 'function') {
-      const result = this.dataProvider[functionName](...Object.values(args));
-      console.log(`SmartAIAgent: Função executada com sucesso. Resultado:`, result);
+  if (this.logger) this.logger(`SmartAIAgent: Executando função '${functionName}' com argumentos:`, args);
+    if (typeof this.functionMap[functionName] === 'function') {
+      const result = await this.functionMap[functionName](args);
+  if (this.logger) this.logger(`SmartAIAgent: Função executada com sucesso. Resultado: ${JSON.stringify(result)}`);
       return result;
     } else {
-      const error = `Função '${functionName}' não encontrada no data provider`;
-      console.log(error);
+      const error = `Função '${functionName}' não encontrada no functionMap`;
+  if (this.logger) this.logger(error);
       return error;
     }
   }
@@ -70,21 +68,23 @@ class SmartAIAgent {
   // MÉTODO 3: ORQUESTRADOR PRINCIPAL
   // Este método coordena todo o fluxo de uma conversa com function calling
   async ask(question) {
-    console.log(`SmartAIAgent: Pergunta recebida: "${question}"`);
-    console.log("");
+    if (this.logger) {
+      this.logger(`SmartAIAgent: Pergunta recebida: "${question}"`);
+      this.logger("");
+    }
 
     try {
       // PASSO 1: Envia a pergunta para a IA
-      console.log(`PASSO 1: Enviando pergunta para o modelo ${this.modelName}`);
+  if (this.logger) this.logger(`PASSO 1: Enviando pergunta para o modelo ${this.modelName}`);
       const result1 = await this.chat.sendMessage(question + "\nRespond in Portuguese.");
       const response1 = result1.response;
 
       // PASSO 2: Verifica se a IA quer executar alguma função
-      console.log(`PASSO 2: Verificando se a IA solicitou function calls`);
+  if (this.logger) this.logger(`PASSO 2: Verificando se a IA solicitou function calls`);
       const functionCalls = response1.functionCalls();
       
       if (functionCalls && functionCalls.length > 0) {
-        console.log(`PASSO 3: IA solicitou execução de função!`);
+  if (this.logger) this.logger(`PASSO 3: IA solicitou execução de função!`);
         
         // Pega a primeira function call (pode haver várias)
         const call = functionCalls[0];
@@ -95,16 +95,16 @@ class SmartAIAgent {
         const result = await this.executeFunction(functionName, args);
         
         // PASSO 4: Envia o resultado de volta para a IA processar
-        console.log(`PASSO 4: Enviando resultado de volta para a IA gerar resposta final`);
+  if (this.logger) this.logger(`PASSO 4: Enviando resultado de volta para a IA gerar resposta final`);
         return await this.sendFunctionResult(functionName, result);
       }
 
       // Se não há function calls, retorna a resposta direta da IA
-      console.log(`Resposta direta da IA (sem function calls)`);
+  if (this.logger) this.logger(`Resposta direta da IA (sem function calls)`);
       return response1.text();
 
     } catch (error) {
-      console.error(`Erro durante a execução:`, error);
+  if (this.logger) this.logger(`Erro durante a execução: ${error}`);
       return `Erro: ${error.message}`;
     }
   }

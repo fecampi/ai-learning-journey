@@ -2,10 +2,10 @@
   "name": "ai-learning-journey",
   "version": "1.0.0",
   "description": "Jornada de aprendizado de IA: De Workflows a Agents com Google Gemini",
-  "main": "examples/demo.js",
+  "main": "examples/agents/demo.js",
   "scripts": {
-    "start": "node examples/demo.js",
-    "demo": "node examples/demo.js"
+    "start": "node examples/agents/demo.js",
+    "demo": "node examples/agents/demo.js"
   },
   "keywords": [
     "ai",
