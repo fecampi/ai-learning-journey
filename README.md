@@ -1,4 +1,4 @@
-# 🎓 AI Learning Journey: De Workflows a Agents
+# �🎓 AI Learning Journey: De Workflows a Agents
 
 Este projeto é uma **jornada de aprendizado sobre IA** que demonstra a evolução natural de simples workflows para agents inteligentes com function calling usando Google Gemini.
 
@@ -294,17 +294,21 @@ Resultado: 110
 ## 🛠️ Componentes Principais do Agent
 
 ### SmartAIAgent (`src/agents/SmartAIAgent.js`)
-Classe principal que:
-- Configura o modelo Gemini
-- Permite adicionar funções (tools) dinamicamente via `addTool`
-- Processa function calls automaticamente
-- Executa funções dinamicamente
-- Mantém histórico de conversas
+O agente foi projetado com **arquitetura modular**, separando responsabilidades em serviços especializados:
+- `FunctionExecutor`: executa funções dinamicamente.
+- `FunctionCallHandler`: gerencia o loop de function calling.
+- `FallbackPlanner`: executa fallback dinâmico (decomposição via LLM).
+- `UserQuestionProcessor`: envia a pergunta inicial para a IA.
+
+O arquivo `SmartAIAgent.js` apenas orquestra, delegando para esses serviços, facilitando manutenção, testes e evolução.
 
 **Principais métodos:**
 - `addTool(functionDeclaration, implementation)` – Adiciona uma função/tool disponível para a IA
 - `startSession(systemPrompt)` – Inicia a sessão do agente, aceitando um system prompt opcional
 - `ask(question)` – Faz uma pergunta para a IA e executa function calling se necessário
+
+**Transparência e Debug:**
+Todos os serviços possuem logs detalhados para facilitar o rastreamento do fluxo de execução e depuração.
 
 ### LogDataProvider (`src/providers/LogDataProvider.js`)
 Simula um sistema de dados com:
@@ -321,11 +325,22 @@ Simula um sistema de dados com:
 
 
 ## 📋 Exemplo de Uso do Agent
-
-### Sobre `addTool`
+### Sobre `addTool` e Prompt Inteligente
 O método `addTool` permite registrar funções (tools) que a IA pode chamar durante a conversa. Cada função é descrita por um objeto (nome, descrição, parâmetros) e uma implementação (função JavaScript). Isso torna fácil adicionar novas capacidades ao agente sem alterar sua estrutura interna.
 
-Exemplo: você pode adicionar uma função para buscar logs ou listar sessões, e a IA saberá quando e como usá-la.
+O **prompt do sistema** pode ser customizado para orientar a IA a:
+- Processar, filtrar ou resumir dados retornados pelas funções antes de responder ao usuário (ex: filtrar apenas logs de erro).
+- Explicar brevemente ao usuário os passos que está realizando (ex: buscar ID, filtrar logs, etc).
+- Considerar que “primeira sessão” significa o menor ID retornado por `getAvailableSessions`.
+
+Exemplo de trecho de prompt:
+```
+Se necessário, você pode processar, filtrar ou resumir os dados retornados pelas funções antes de responder ao usuário. Por exemplo, se a função retornar uma lista de logs, você pode filtrar apenas os logs que contenham a palavra "erro" ou fazer um resumo.
+
+Ao responder, explique brevemente ao usuário os passos que está realizando, como buscar o ID da sessão, filtrar logs, etc, antes de apresentar o resultado final.
+
+Considere que "primeira sessão" significa a sessão com o menor ID retornado pela função getAvailableSessions. Sempre que o usuário pedir pela primeira sessão, utilize o menor ID disponível.
+```
 
 ### Exemplo
 ```javascript
@@ -535,3 +550,26 @@ npm install
 ---
 
 **Desenvolvido para fins educacionais - Jornada de aprendizado de IA: Workflows → Agents** 🎓
+
+---
+
+## Diagrama simples da arquitetura do SmartAIAgent (PlantUML)
+
+```plantuml
+@startuml
+class SmartAIAgent {
+  +ask()
+  +addTool()
+  +startSession()
+}
+class UserQuestionProcessor
+class FunctionCallHandler
+class FunctionExecutor
+class FallbackPlanner
+
+SmartAIAgent --> UserQuestionProcessor : delega
+SmartAIAgent --> FunctionCallHandler : delega
+FunctionCallHandler --> FunctionExecutor : executa função
+SmartAIAgent --> FallbackPlanner : delega
+@enduml
+```
