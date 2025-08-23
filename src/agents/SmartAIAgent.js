@@ -5,6 +5,7 @@
 // =============================================
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const Logger = require("../utils/Logger");
 
 class SmartAIAgent {
   constructor(apiKey, model = "gemini-1.5-flash", logger = null) {
@@ -14,7 +15,8 @@ class SmartAIAgent {
     this.functionMap = {};
     this.model = null;
     this.chat = null;
-    this.logger = typeof logger === 'function' ? logger : null;
+    // Usa Logger customizado ou padrão
+    this.logger = logger instanceof Logger ? logger : new Logger("SmartAIAgent", logger);
   }
 
   addTool(functionDeclaration, implementation) {
@@ -37,8 +39,7 @@ class SmartAIAgent {
   // MÉTODO 1: COMUNICAÇÃO COM A IA
   // Envia o resultado de uma função de volta para a IA processar
   async sendFunctionResult(functionName, result) {
-  if (this.logger) this.logger(`SmartAIAgent: Enviando resultado da função '${functionName}' para a IA processar`);
-    
+    this.logger.log(`Enviando resultado da função '${functionName}' para a IA processar`);
     // Formato específico do Gemini para function responses
     const response = await this.chat.sendMessage([{
       functionResponse: {
@@ -46,21 +47,20 @@ class SmartAIAgent {
         response: { content: result }
       }
     }]);
-    
     return response.response.text();
   }
 
   // MÉTODO 2: EXECUÇÃO DINÂMICA DE FUNÇÕES  
   // Este é o coração do sistema - executa qualquer função do dataProvider
   async executeFunction(functionName, args) {
-  if (this.logger) this.logger(`SmartAIAgent: Executando função '${functionName}' com argumentos:`, args);
+    this.logger.log(`Executando função '${functionName}' com argumentos:`, args);
     if (typeof this.functionMap[functionName] === 'function') {
       const result = await this.functionMap[functionName](args);
-  if (this.logger) this.logger(`SmartAIAgent: Função executada com sucesso. Resultado: ${JSON.stringify(result)}`);
+      this.logger.log(`Função executada com sucesso. Resultado: ${JSON.stringify(result)}`);
       return result;
     } else {
       const error = `Função '${functionName}' não encontrada no functionMap`;
-  if (this.logger) this.logger(error);
+      this.logger.log(error);
       return error;
     }
   }
@@ -68,43 +68,34 @@ class SmartAIAgent {
   // MÉTODO 3: ORQUESTRADOR PRINCIPAL
   // Este método coordena todo o fluxo de uma conversa com function calling
   async ask(question) {
-    if (this.logger) {
-      this.logger(`SmartAIAgent: Pergunta recebida: "${question}"`);
-      this.logger("");
-    }
-
+    this.logger.log(`Pergunta recebida: "${question}"`);
+    this.logger.log("");
     try {
       // PASSO 1: Envia a pergunta para a IA
-  if (this.logger) this.logger(`PASSO 1: Enviando pergunta para o modelo ${this.modelName}`);
+      this.logger.log(`PASSO 1: Enviando pergunta para o modelo ${this.modelName}`);
       const result1 = await this.chat.sendMessage(question + "\nRespond in Portuguese.");
       const response1 = result1.response;
 
       // PASSO 2: Verifica se a IA quer executar alguma função
-  if (this.logger) this.logger(`PASSO 2: Verificando se a IA solicitou function calls`);
+      this.logger.log(`PASSO 2: Verificando se a IA solicitou function calls`);
       const functionCalls = response1.functionCalls();
-      
       if (functionCalls && functionCalls.length > 0) {
-  if (this.logger) this.logger(`PASSO 3: IA solicitou execução de função!`);
-        
+        this.logger.log(`PASSO 3: IA solicitou execução de função!`);
         // Pega a primeira function call (pode haver várias)
         const call = functionCalls[0];
         const functionName = call.name;
         const args = call.args;
-        
         // PASSO 3: Executa a função solicitada
         const result = await this.executeFunction(functionName, args);
-        
         // PASSO 4: Envia o resultado de volta para a IA processar
-  if (this.logger) this.logger(`PASSO 4: Enviando resultado de volta para a IA gerar resposta final`);
+        this.logger.log(`PASSO 4: Enviando resultado de volta para a IA gerar resposta final`);
         return await this.sendFunctionResult(functionName, result);
       }
-
       // Se não há function calls, retorna a resposta direta da IA
-  if (this.logger) this.logger(`Resposta direta da IA (sem function calls)`);
+      this.logger.log(`Resposta direta da IA (sem function calls)`);
       return response1.text();
-
     } catch (error) {
-  if (this.logger) this.logger(`Erro durante a execução: ${error}`);
+      this.logger.log(`Erro durante a execução: ${error}`);
       return `Erro: ${error.message}`;
     }
   }

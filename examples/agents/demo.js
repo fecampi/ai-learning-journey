@@ -1,6 +1,6 @@
 const SmartAIAgent = require("../../src/agents/SmartAIAgent");
 const LogDataProvider = require("../../src/providers/LogDataProvider");
-const ChatTerminal = require("../../src/agents/ChatTerminal");
+const ChatTerminal = require("../../src/utils/ChatTerminal");
 require("dotenv").config();
 
 // API Key do ambiente
@@ -17,7 +17,8 @@ async function demo() {
   // Cria o agente IA
   const smartAgent = new SmartAIAgent(
     API_KEY, // API Key do Google
-    "gemini-1.5-flash" // Modelo (opcional - padrão é flash)
+    "gemini-1.5-flash", // Modelo (opcional - padrão é flash)
+    true
   );
 
   // Cria o provedor de dados

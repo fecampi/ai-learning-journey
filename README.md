@@ -28,6 +28,8 @@ ai-learning-journey/
 ├── src/                         # Código principal dos agents
 │   ├── agents/
 │   │   └── SmartAIAgent.js      # Classe principal do agente IA
+│   ├── utils/
+│   │   └── ChatTerminal.js      # Interface de chat simplificada para terminal
 │   ├── providers/
 │   │   └── LogDataProvider.js   # Provedor de dados mock
 │   └── config/
@@ -294,14 +296,15 @@ Resultado: 110
 ### SmartAIAgent (`src/agents/SmartAIAgent.js`)
 Classe principal que:
 - Configura o modelo Gemini
+- Permite adicionar funções (tools) dinamicamente via `addTool`
 - Processa function calls automaticamente
 - Executa funções dinamicamente
 - Mantém histórico de conversas
 
-**Métodos principais:**
-- `ask(question)` - Faz uma pergunta para a IA
-- `executeFunction(name, args)` - Executa função dinamicamente
-- `sendFunctionResult(name, result)` - Envia resultado para IA
+**Principais métodos:**
+- `addTool(functionDeclaration, implementation)` – Adiciona uma função/tool disponível para a IA
+- `startSession(systemPrompt)` – Inicia a sessão do agente, aceitando um system prompt opcional
+- `ask(question)` – Faz uma pergunta para a IA e executa function calling se necessário
 
 ### LogDataProvider (`src/providers/LogDataProvider.js`)
 Simula um sistema de dados com:
@@ -314,25 +317,75 @@ Simula um sistema de dados com:
 - `getAvailableSessions()` - Lista sessões disponíveis
 
 ### Configurações
-- **functions.js**: Define funções disponíveis para a IA
+- **functions.js**: Define funções disponíveis para a IA (usado como referência, mas agora as funções são registradas diretamente no demo.js via `addTool`)
+
 
 ## 📋 Exemplo de Uso do Agent
 
-### Uso Básico
+### Sobre `addTool`
+O método `addTool` permite registrar funções (tools) que a IA pode chamar durante a conversa. Cada função é descrita por um objeto (nome, descrição, parâmetros) e uma implementação (função JavaScript). Isso torna fácil adicionar novas capacidades ao agente sem alterar sua estrutura interna.
+
+Exemplo: você pode adicionar uma função para buscar logs ou listar sessões, e a IA saberá quando e como usá-la.
+
+### Exemplo
 ```javascript
-const { SmartAIAgent, LogDataProvider, availableFunctions, config } = require('./index');
+const SmartAIAgent = require("./src/agents/SmartAIAgent");
+const LogDataProvider = require("./src/providers/LogDataProvider");
+const agent = new SmartAIAgent(process.env.GOOGLE_API_KEY);
+const logProvider = new LogDataProvider();
 
-// Cria o agente
-const agent = new SmartAIAgent(
-  config.API_KEY,
-  new LogDataProvider(),
-  availableFunctions
-);
+// Adiciona funções/tools disponíveis
+agent.addTool({
+  name: "getLogs",
+  description: "Busca logs de uma sessão específica pelo ID da sessão",
+  parameters: {
+    type: "object",
+    properties: { sessionId: { type: "integer" } },
+    required: ["sessionId"]
+  }
+}, ({ sessionId }) => logProvider.getLogs(sessionId));
 
-// Faz uma pergunta
-const response = await agent.ask("Show me logs from session 102");
-console.log(response);
+agent.addTool({
+  name: "getAvailableSessions",
+  description: "Lista todas as sessões disponíveis no sistema",
+  parameters: { type: "object", properties: {} }
+}, () => logProvider.getAvailableSessions());
+
+// Inicia a sessão (opcional: system prompt)
+await agent.startSession("Você é um assistente educacional de IA.");
+
+// Faz perguntas normalmente
+const resposta = await agent.ask("Quais sessões estão disponíveis?");
+console.log(resposta);
 ```
+## 💬 ChatTerminal (`src/agents/ChatTerminal.js`)
+Classe utilitária para interação de chat no terminal, agora simplificada e localizada em `src/utils/ChatTerminal.js`:
+
+**Principais métodos:**
+- `input()` – Lê a entrada do usuário (prompt "User: ")
+- `output(message)` – Exibe a resposta da IA (prefixo "AI:")
+
+Exemplo de uso:
+```javascript
+const ChatTerminal = require("./src/utils/ChatTerminal");
+const terminal = new ChatTerminal();
+terminal.output("Olá!");
+const userInput = await terminal.input();
+terminal.output(`Você digitou: ${userInput}`);
+```
+## 🖥️ Exemplo de chat contínuo (demo.js)
+
+Veja `examples/agents/demo.js` para um exemplo de chat contínuo, onde o usuário pode conversar livremente com o agente e as funções são registradas via `addTool`. O exemplo já utiliza o novo caminho de importação:
+
+```javascript
+const ChatTerminal = require("../../src/utils/ChatTerminal");
+```
+
+Fluxo básico:
+1. Cria o agente e registra as funções com `addTool`
+2. Inicia a sessão com `startSession`
+3. Usa o `ChatTerminal` para interação
+4. Loop de chat: lê input do usuário, envia para o agente, exibe resposta
 
 ### Uso Avançado
 ```javascript
