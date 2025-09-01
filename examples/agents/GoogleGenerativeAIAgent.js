@@ -1,4 +1,4 @@
-const SmartAIAgent = require("../../src/agents/SmartAIAgent");
+const GeminiAIAgent = require("../../src/agents/GoogleGenerativeAIAgent/GoogleGenerativeAIAgent");
 const LogDataProvider = require("../../src/providers/LogDataProvider");
 const ChatTerminal = require("../../src/utils/ChatTerminal");
 require("dotenv").config();
@@ -22,7 +22,7 @@ Se necessário, você pode processar, filtrar ou resumir os dados retornados pel
 Se não for possível responder usando as funções, explique o motivo de forma clara.`;
 
   // Cria o agente IA
-  const smartAgent = new SmartAIAgent(
+  const geminiAIAgent = new GeminiAIAgent(
     API_KEY, // API Key do Google
     "gemini-1.5-flash", // Modelo (opcional - padrão é flash)
     true
@@ -32,7 +32,7 @@ Se não for possível responder usando as funções, explique o motivo de forma 
   const logProvider = new LogDataProvider();
 
   // Adiciona as funções disponíveis usando addTool
-  smartAgent.addTool(
+  geminiAIAgent.addTool(
     {
       name: "getLogs",
       description: "Busca os logs (erros, avisos, eventos) de uma sessão específica pelo ID da sessão. Caso não saiba o ID, utilize getAvailableSessions para obter um ID válido antes de chamar esta função.",
@@ -50,7 +50,7 @@ Se não for possível responder usando as funções, explique o motivo de forma 
     ({ sessionId }) => logProvider.getLogs(sessionId)
   );
 
-  smartAgent.addTool(
+  geminiAIAgent.addTool(
     {
       name: "getAvailableSessions",
       description: "Retorna um array de IDs numéricos de todas as sessões disponíveis no sistema, em ordem crescente. Use esta função para obter o menor ID de sessão e, em seguida, caso precise utilize getLogs para buscar os logs dessa sessão.",
@@ -63,7 +63,7 @@ Se não for possível responder usando as funções, explique o motivo de forma 
   );
 
   const terminal = new ChatTerminal();
-  await smartAgent.startSession(SYSTEM_PROMPT);
+  await geminiAIAgent.startSession(SYSTEM_PROMPT);
   terminal.output("DEMO EDUCACIONAL: AI AGENT COM FUNCTION CALLING");
   terminal.output("==================================================");
   terminal.output("");
@@ -88,7 +88,7 @@ Se não for possível responder usando as funções, explique o motivo de forma 
 
   while (true) {
     const userInput = await terminal.input("");
-    const response = await smartAgent.ask(userInput);
+    const response = await geminiAIAgent.ask(userInput);
     terminal.output(response);
   }
 }

@@ -1,17 +1,17 @@
 // =============================================
-// AGENTE DE IA COM FUNCTION CALLING
+// AGENTE GEMINI COM FUNCTION CALLING
 // Esta é a classe principal que demonstra como criar um agente
 // inteligente capaz de executar funções dinamicamente
 // =============================================
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const Logger = require("../utils/Logger");
+const Logger = require("../../utils/Logger");
 const FunctionExecutor = require("./services/FunctionExecutor");
 const FunctionCallHandler = require("./services/FunctionCallHandler");
 const FallbackPlanner = require("./services/FallbackPlanner");
 const UserQuestionProcessor = require("./services/UserQuestionProcessor");
 
-class SmartAIAgent {
+class GoogleGenerativeAIAgent {
   constructor(apiKey, model = "gemini-1.5-flash", logger = null) {
     this.modelName = model;
     this.genAI = new GoogleGenerativeAI(apiKey);
@@ -21,7 +21,9 @@ class SmartAIAgent {
     this.chat = null;
     // Usa Logger customizado ou padrão
     this.logger =
-      logger instanceof Logger ? logger : new Logger("[SmartAIAgent]", logger);
+      logger instanceof Logger
+        ? logger
+        : new Logger("GoogleGenerativeAIAgent", logger);
     this.functionExecutor = null;
     this.functionCallHandler = null;
     this.fallbackPlanner = null;
@@ -99,12 +101,15 @@ class SmartAIAgent {
         const functionCalls = finalResponse.functionCalls();
         const iaText = finalResponse.text && finalResponse.text();
         if (!functionCalls || functionCalls.length === 0) {
-          if (iaText && iaText.trim().length > 0 && iaText !== 'null') {
+          if (iaText && iaText.trim().length > 0 && iaText !== "null") {
             // Se a IA já respondeu com texto útil, retorna direto
             return iaText;
           } else {
             // Só chama o fallback se não houver texto útil
-            return await this.fallbackPlanner.planAndExecute(question, finalResponse);
+            return await this.fallbackPlanner.planAndExecute(
+              question,
+              finalResponse
+            );
           }
         }
       }
@@ -122,4 +127,4 @@ class SmartAIAgent {
   }
 }
 
-module.exports = SmartAIAgent;
+module.exports = GoogleGenerativeAIAgent;
