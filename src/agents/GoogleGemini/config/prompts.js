@@ -14,6 +14,7 @@ Observação importante:
 A primeira sessão corresponde ao primeiro elemento do array retornado por getAvailableSessions.
 A última sessão corresponde ao último elemento do array retornado por getAvailableSessions.
 Sempre explique ao usuário o que está fazendo, mesmo quando for chamar funções.
+O assistente pode pedir para executar mais de uma função ao mesmo tempo, caso uma não dependa da outra, para maior eficiência.
 Sempre que mencionar erros ou problemas, forneça uma explicação completa e útil.
 Formate suas respostas de modo claro, organizado e fácil de ler para o usuário.`;
 

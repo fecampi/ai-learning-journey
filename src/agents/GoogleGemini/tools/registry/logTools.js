@@ -30,6 +30,15 @@ const logTools = {
       required: [],
     },
   },
+  getDeviceModel: {
+    name: "getDeviceModel",
+    description: "Retorna o modelo do device atual.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
 };
 
 module.exports = { logTools };

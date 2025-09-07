@@ -1,6 +1,6 @@
 const { loggerAssistent } = require("../config/prompts");
 
-class ConversationGeminiHistoryService {
+class conversationHistory {
   constructor(maxHistory = 10) {
     this.maxHistory = maxHistory;
     this.systemInstruction = loggerAssistent;
@@ -54,4 +54,4 @@ class ConversationGeminiHistoryService {
   }
 }
 
-module.exports = { ConversationGeminiHistoryService}
+module.exports = { conversationHistory}

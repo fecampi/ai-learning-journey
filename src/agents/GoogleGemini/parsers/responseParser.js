@@ -1,5 +1,5 @@
 // Função utilitária para extrair texto e candidate da resposta Gemini
-function getTextAndCandidateFromResponse(response, historyService) {
+function getTextAndCandidateFromResponse(response) {
   let text;
   const candidate =
     response &&
@@ -19,9 +19,6 @@ function getTextAndCandidateFromResponse(response, historyService) {
     text = response.error.message;
   } else {
     text = "Sem resposta do modelo";
-  }
-  if (historyService) {
-    historyService.add("assistant", text);
   }
   return { text, candidate };
 }

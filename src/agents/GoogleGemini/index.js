@@ -1,10 +1,7 @@
 require("dotenv").config();
 const { post } = require("./tools/httpClient");
-const {
-  ConversationGeminiHistoryService,
-} = require("./memory/conversationHistory");
+const { conversationHistory } = require("./memory/conversationHistory");
 const { ToolManager } = require("./tools/ToolManager");
-const { loggerAssistent } = require("./config/prompts");
 const {
   getTextAndCandidateFromResponse,
   getCallsFromResponse,
@@ -25,9 +22,13 @@ class GoogleGemini {
       temperature: 0.1,
       maxOutputTokens: 1000,
     };
-    this.systemPrompt = this.historyService =
-      new ConversationGeminiHistoryService();
+    this.historyService = new conversationHistory();
     this.toolManager = new ToolManager();
+    this.systemInstruction = " ";
+  }
+
+  setSystemInstruction(instruction) {
+    this.systemInstruction = instruction;
   }
 
   buildPayload(question) {
@@ -40,7 +41,7 @@ class GoogleGemini {
     return {
       contents: [...this.historyService.getMessages(), currentMessage],
       systemInstruction: {
-        parts: [{ text: loggerAssistent }],
+        parts: [{ text: this.systemInstruction }],
       },
       generationConfig: {
         temperature: this.modelOptions.temperature,
@@ -52,28 +53,14 @@ class GoogleGemini {
 
   // Método para executar conversa básica com o modelo
   async executeConversation(question) {
-    // Adiciona pergunta do usuário ao histórico temporariamente
-
+    this.historyService.add("user", question || "");
     const payload = this.buildPayload(question);
-    console.log("[DEBUG] Sending payload:", JSON.stringify(payload, null, 2));
-
     const response = await post(this.apiOptions, JSON.stringify(payload));
-    console.log(
-      "[DEBUG] Resposta completa da API Gemini:",
-      JSON.stringify(response, null, 2)
-    );
-
-    // Salva a pergunta no histórico
-    this.historyService.add("user", question);
-
-    const { text, candidate } = getTextAndCandidateFromResponse(
-      response,
-      this.historyService
-    );
-
+    const { text, candidate } = getTextAndCandidateFromResponse(response);
+    this.historyService.add("assistant", text);
     return {
       ...response,
-      extractedText: text,
+      text,
       functionsRequested: getCallsFromResponse(candidate),
     };
   }
@@ -82,9 +69,32 @@ class GoogleGemini {
     question = "Qual é o device e me mostre ao mesmo tempo os logs da seção 101"
   ) {
     try {
-      const result = await this.executeConversation(question);
+      let result = await this.executeConversation(question);
+
+      const maxCycles = 5;
+      let resultsText = "";
+      for (let cycles = 0; cycles < maxCycles; cycles++) {
+        if (
+          !result.functionsRequested ||
+          result.functionsRequested.length === 0
+        )
+          break;
+        resultsText = this.toolManager.executeFunctions(
+          result.functionsRequested
+        );
+        result = await this.executeConversation(resultsText);
+      }
+
+      // Se atingiu o limite, concatena aviso e faz uma última chamada
       if (result.functionsRequested && result.functionsRequested.length > 0) {
-        console.log("Chamando funções:", result.functionsRequested);
+        const warning =
+          "Limite de chamadas de funções atingido. Por favor, responda com base nos dados disponíveis ou peça mais informações ao usuário.";
+        resultsText = (resultsText ? resultsText + "\n" : "") + warning;
+        result = await this.executeConversation(resultsText);
+      }
+
+      if (result.text) {
+        console.log("Texto retornado:", result.text);
       }
       return result;
     } catch (error) {
