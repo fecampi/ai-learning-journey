@@ -1,4 +1,4 @@
-const GeminiAIAgent = require("../../src/agents/GoogleGenerativeAIAgent/GoogleGenerativeAIAgent");
+const GeminiAIAgent = require("../../src/agents/GoogleGenerativeAIAgent");
 const LogDataProvider = require("../../src/providers/LogDataProvider");
 const ChatTerminal = require("../../src/utils/ChatTerminal");
 require("dotenv").config();

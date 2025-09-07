@@ -1,7 +1,7 @@
-const OllamaGemma3Agent = require("../../src/agents/ollama/agents/ollamaAgent.js");
+const GoogleGemini = require("../../src/agents/GoogleGemini");
 
 async function runDemo() {
-  const agent = new OllamaGemma3Agent();
+  const agent = new GoogleGemini();
   try {
     const resposta = await agent.generate();
     console.log("Resposta da API Ollama:");

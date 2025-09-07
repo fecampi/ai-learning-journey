@@ -4,7 +4,7 @@
   "description": "Jornada de aprendizado de IA: De Workflows a Agents com Google Gemini",
   "main": "examples/agents/demo.js",
   "scripts": {
-    "dev": "node examples/agents/demoOllamaGemma3.js",
+    "dev": "node examples/agents/demoGemini.js",
     "gemini:generative": "node examples/agents/GoogleGenerativeAIAgent"
   },
   "keywords": [

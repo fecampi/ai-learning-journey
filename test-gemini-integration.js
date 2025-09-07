@@ -1,4 +1,4 @@
-const OllamaAgent = require("./src/agents/ollama/agents/ollamaAgent");
+const OllamaAgent = require("./src/agents/GoogleGemini/agents/ollamaAgent");
 
 async function testGeminiIntegration() {
   console.log("🚀 Testando integração com Gemini 1.5 Flash via HTTP POST...\n");
